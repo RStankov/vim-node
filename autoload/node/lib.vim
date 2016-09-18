@@ -2,6 +2,10 @@ let s:ABSPATH = '^/'
 let s:RELPATH = '\v^\.\.?(/|$)'
 let s:MODULE = '\v^(/|\.\.?(/|$))@!'
 
+if !exists('g:node_project_paths')
+  let g:node_project_paths = []
+endif
+"
 " Damn Netrw can't handle HTTPS at all. It's 2013! Insecure bastard!
 let s:CORE_URL_PREFIX = "http://rawgit.com/nodejs/node"
 let s:CORE_MODULES = ["_debugger", "_http_agent", "_http_client",
@@ -38,9 +42,30 @@ function! s:absolutize(name, from)
 	elseif a:name =~# s:RELPATH
 		let dir = isdirectory(a:from) ? a:from : fnamemodify(a:from, ":h")
 		return dir . "/" . a:name
-	else
-		return b:node_root . "/node_modules/" . a:name
+        endif
+
+	for projectPath in g:node_project_paths
+    		let path = b:node_root . "/" . projectPath . "/" . a:name
+		if s:IsInProjectPath(path)
+			return path
+		endif
+	endfor
+
+        return b:node_root . "/node_modules/" . a:name
+endfunction
+
+function! s:IsInProjectPath(path)
+	if isdirectory(a:path)
+    		return 1
 	endif
+
+	for suffix in s:uniq([""] + g:node#suffixesadd + split(&l:suffixesadd, ","))
+		if filereadable(a:path . suffix)
+			return 1
+		endif
+	endfor
+
+	return 0
 endfunction
 
 function! s:resolve(path)
